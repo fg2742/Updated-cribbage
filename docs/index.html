@@ -128,10 +128,6 @@ button:active { background: #ccc; }
   z-index: 2;
 }
 </style>
-
-
-
-
 </head>
 <body>
 
@@ -255,7 +251,7 @@ function suggest(){
     deck.forEach(st=>{
       const hs=scoreHandDetailed(keep,st).total;
       const cs=scoreHandDetailed(discard,st).total;
-      h+=hs; c+=cribToggleEl.checked?cs:-cs;
+      h+=hs; c=cribToggleEl.checked?cs:-cs;
     });
     const handEV=h/deck.length,cribEV=c/deck.length,totalEV=handEV+cribEV;
     results.push({discard,handEV,cribEV,totalEV});
@@ -320,12 +316,10 @@ function scoreUserDiscard(){
   if(currentHand.length===0) return alert('Deal a hand first!');
   if(userSelected.length!==2) return alert('Select exactly 2 cards as your discards.');
   if(!starterCard) return alert('Deal the starter first!');
-
   const discard = [...userSelected];
   const keep = currentHand.filter(c => !discard.includes(c));
   renderStarterResult(userStarterRow, userScore, keep, discard, starterCard);
 }
-
 // =====================================
 
 function toggleEv(){
