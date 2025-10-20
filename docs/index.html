@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -318,13 +317,15 @@ function toggleSelect(img){
 }
 
 function scoreUserDiscard(){
-  if(currentHand.length===0)return alert('Deal a hand first!');
-  if(userSelected.length!==2)return alert('Select exactly 2 cards as your discards.');
-  const discard=[...userSelected];
-  const keep=currentHand.filter(c=>!discard.includes(c));
-  const starter=remainingDeck[Math.floor(Math.random()*remainingDeck.length)];
-  renderStarterResult(userStarterRow,userScore,keep,discard,starter);
+  if(currentHand.length===0) return alert('Deal a hand first!');
+  if(userSelected.length!==2) return alert('Select exactly 2 cards as your discards.');
+  if(!starterCard) return alert('Deal the starter first!');
+
+  const discard = [...userSelected];
+  const keep = currentHand.filter(c => !discard.includes(c));
+  renderStarterResult(userStarterRow, userScore, keep, discard, starterCard);
 }
+
 // =====================================
 
 function toggleEv(){
