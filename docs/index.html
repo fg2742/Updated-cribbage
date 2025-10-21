@@ -1,346 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cribbage Sim</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cribbage Simulator</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 <style>
-body {
-  font-family: sans-serif;
-  padding: 12px;
-  max-width: 420px;
-  margin: auto;
-  background: #2e7d32; /* green */
-  color: white;
-}
-
-h2 { text-align: center; margin-bottom: 10px; }
-
-button {
-  font-size: 16px;
-  margin: 6px 0;
-  width: 100%;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #bbb;
-  background: #fff;
-  color: #000;
-  cursor: pointer;
-}
-button:hover { background: #e0e0e0; }
-button:active { background: #ccc; }
-
-/* Dealt hand row (no wrapping, resizes if needed) */
-.card-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;              /* prevent wrapping */
-  gap: 2px;
-  margin: 6px 0;
-  overflow: hidden;
-  flex-shrink: 1;
-}
-.card-row img {
-  width: clamp(40px, 12vw, 60px); /* responsive card width */
-  height: auto;
-  border-radius: 3px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-  background-color: white;        /* solid white background */
-}
-
-/* Starter + kept hand row */
-.starter-hand-row {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: flex-end;
-  flex-wrap: nowrap;
-  gap: 4px;
-  margin: 6px 0;
-}
-.starter-hand-row img {
-  width: 60px;
-  height: 85px;
-  border-radius: 3px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-  background-color: white;        /* white background */
-}
-
-/* Selected card highlight */
-.card-row img.selected,
-.starter-hand-row img.selected {
-  border: 3px solid yellow;   /* bright yellow border when selected */
-  transform: scale(1.05);     /* subtle pop-up effect */
-  z-index: 2;
-}
-
-
-/* Labels and titles */
-.starter-card-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.starter-label {
-  font-size: 10px;
-  color: #a5d6a7;
-  margin-bottom: 2px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  background: rgba(0,0,0,0.3);
-}
-.starter-card-container:first-child { margin-right: 8px; }
-
-.hand-title, .starter-title {
-  text-align: center;
-  font-weight: bold;
-  margin: 4px 0;
-}
-
-/* Results and EV display */
-.result {
-  text-align: center;
-  font-weight: bold;
-  margin: 6px 0;
-}
-#evSection { margin-top: 10px; }
-#evDetails {
-  display: none;
-  margin-top: 6px;
-  background: #1b5e20;
-  border-radius: 6px;
-  padding: 6px;
-  max-height: 200px;
-  overflow-y: auto;
-  color: #fff;
-}
-#toggleEv {
-  color: #a5d6a7;
-  text-align: center;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-/* Hover scaling */
-.card-row img:hover, .starter-hand-row img:hover {
-  transform: scale(1.1);
-  transition: transform 0.15s;
-  z-index: 2;
+body { font-family: Arial, sans-serif; padding: 10px; background-color: #0B5E1F; color: #fff; margin:0;}
+h2 { text-align:center; margin:0 0 10px 0; color:#fff;}
+button { margin: 5px 0; padding: 12px 0; font-size: 18px; width: 100%; border-radius: 8px; cursor: pointer; }
+#handsContainer { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; background-color: #fff; color: #000; min-width: 400px; }
+td, th { border: 1px solid #ccc; padding: 8px 6px; text-align: center; font-size: 18px; }
+.red { color: red; }
+.starter { background-color: #ffd966; padding: 4px 6px; border-radius: 4px; }
+@media (max-width: 500px) {
+  td, th { font-size: 16px; padding: 6px 4px; }
+  button { font-size: 16px; padding: 10px 0; }
 }
 </style>
 </head>
 <body>
 
-<h2>Cribbage Sim</h2>
+<h2>Cribbage Multi-Hand Simulator</h2>
+<button id="dealHandsBtn">Deal 5 Hands</button>
+<div id="handsContainer"></div>
 
-<button onclick="deal()">Deal Hand</button>
-<div class="hand-title">Your Hand</div>
-<div id="hand" class="card-row"></div>
+<script defer>
+(() => {
+const suits = ['♠', '♥', '♦', '♣'];
+const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+let dealtHands = [];
 
-<div style="margin-top:10px;">
-  <label><input type="checkbox" id="cribToggle" checked> My Crib</label>
-</div>
-
-<button onclick="suggest()">Suggest Best Discard</button>
-<div id="suggestSection">
-  <div class="hand-title">Discard Suggestion</div>
-  <div id="discard" class="card-row"></div>
-  <div id="evInfo" class="result"></div>
-</div>
-
-<button onclick="dealStarter()">Deal Starter & Score</button>
-<div id="starterSection">
-  <div class="starter-title">Starter + Kept Hand</div>
-  <div id="starterHandRow" class="starter-hand-row"></div>
-  <div id="score" class="result"></div>
-</div>
-
-<!-- ==== USER DISCARD ADDITION ==== -->
-<hr style="margin:16px 0; border:1px solid #4caf50;">
-<div class="hand-title">Try Your Own Discards</div>
-<div class="result" style="font-size:14px;">Click two cards above to mark your discards.</div>
-<button onclick="scoreUserDiscard()">Score My Discard</button>
-<div id="userStarterSection">
-  <div class="starter-title">My Discard — Starter + Kept Hand</div>
-  <div id="userStarterRow" class="starter-hand-row"></div>
-  <div id="userScore" class="result"></div>
-</div>
-<!-- =============================== -->
-
-<div id="evSection">
-  <div id="toggleEv" onclick="toggleEv()">Show EV Details ▼</div>
-  <div id="evDetails"></div>
-</div>
-
-<script>
-const suits=['S','H','D','C'],ranks=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-const deckBase=ranks.flatMap(r=>suits.map(s=>r+s));
-const rankMap={A:"ace",2:"2",3:"3",4:"4",5:"5",6:"6",7:"7",8:"8",9:"9",10:"10",J:"jack",Q:"queen",K:"king"};
-const suitMap={S:"spades",H:"hearts",D:"diamonds",C:"clubs"};
-const cardImages={};deckBase.forEach(c=>cardImages[c]=`https://raw.githubusercontent.com/hayeah/playing-cards-assets/master/png/${rankMap[c.slice(0,-1)]}_of_${suitMap[c.slice(-1)]}.png`);
-
-function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function renderCards(el,cards,selectable=false){
-  el.innerHTML='';
-  cards.forEach(c=>{
-    const img=document.createElement('img');
-    img.src=cardImages[c]; img.alt=c;
-    if(selectable){
-      img.classList.add('selectable');
-      img.onclick=()=>toggleSelect(img);
-    }
-    el.appendChild(img);
-  });
+function parseCard(cardStr) {
+  const match = cardStr.match(/^(10|[A2-9JQK])(.+)$/);
+  if(!match) return {rank:'?', suit:'?'};
+  return { rank: match[1], suit: match[2] };
 }
-function cardVal(r){if(r==='A')return 1;if(['J','Q','K'].includes(r))return 10;return parseInt(r);}
-function rankIndex(r){return ranks.indexOf(r);}
-function getCombos(arr,n){const res=[];function f(s,c){if(c.length===n)return res.push([...c]);for(let i=s;i<arr.length;i++)f(i+1,c.concat(arr[i]));}f(0,[]);return res;}
-function scorePairs(cards){const r=cards.map(c=>c.slice(0,-1)),cnt={};r.forEach(x=>cnt[x]=(cnt[x]||0)+1);let pts=0;for(const k in cnt){if(cnt[k]>=2)pts+=cnt[k]*(cnt[k]-1);}return pts;}
-function score15s(cards){const v=cards.map(c=>cardVal(c.slice(0,-1)));let pts=0;for(let n=2;n<=v.length;n++){getCombos(v,n).forEach(c=>{if(c.reduce((a,b)=>a+b,0)===15)pts+=2;});}return pts;}
-function scoreRuns(cards){const r=cards.map(c=>rankIndex(c.slice(0,-1)));const counts={};r.forEach(x=>counts[x]=(counts[x]||0)+1);const uniq=[...new Set(r)].sort((a,b)=>a-b);let total=0;for(let len=5;len>=3;len--){for(let i=0;i<=uniq.length-len;i++){const run=uniq.slice(i,i+len);if(run.every((v,j)=>j===0||run[j]===run[j-1]+1)){let mult=1;run.forEach(r=>mult*=counts[r]);total+=len*mult;}}if(total>0)break;}return total;}
-function scoreFlush(keep,starter){const s=keep[0].slice(-1);if(keep.every(c=>c.slice(-1)===s))return starter.slice(-1)===s?5:4;return 0;}
-function scoreNobs(keep,starter){const ss=starter.slice(-1);return keep.some(c=>c.startsWith('J')&&c.slice(-1)===ss)?1:0;}
-function scoreHandDetailed(keep,starter){const all=[...keep,starter];const p=scorePairs(all),f15=score15s(all),r=scoreRuns(all),fl=scoreFlush(keep,starter),n=scoreNobs(keep,starter);return{pairs:p,fifteens:f15,runs:r,flush:fl,nobs:n,total:p+f15+r+fl+n};}
 
-const handEl=document.getElementById('hand');
-const discardEl=document.getElementById('discard');
-const starterEl=document.getElementById('starterHandRow');
-const evInfoEl=document.getElementById('evInfo');
-const scoreEl=document.getElementById('score');
-const evDetailsEl=document.getElementById('evDetails');
-const cribToggleEl=document.getElementById('cribToggle');
+function scoreCribbageHand(hand, starter) {
+  const fullHand = [...hand, starter];
+  const rankValues = { A:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9,10:10,J:10,Q:10,K:10 };
+  const cards = fullHand.map(c => parseCard(c));
 
-// new refs
-const userStarterRow=document.getElementById('userStarterRow');
-const userScore=document.getElementById('userScore');
-
-let currentHand=[],remainingDeck=[],bestSuggestion=null,starterCard=null;
-let userSelected=[]; // ==== USER DISCARD ADDITION ====
-
-function monteCarloCribEV(discard,trials=2000){
-  const deck=deckBase.filter(c=>!currentHand.includes(c));
-  let total=0;
-  for(let i=0;i<trials;i++){
-    const opp=[];while(opp.length<2){const c=deck[Math.floor(Math.random()*deck.length)];if(!discard.includes(c)&&!opp.includes(c))opp.push(c);}
-    const starter=deck[Math.floor(Math.random()*deck.length)];
-    total+=scoreHandDetailed([...discard,...opp],starter).total;
+  let fifteens = 0;
+  const values = cards.map(c => rankValues[c.rank]||0);
+  for (let mask = 1; mask < (1 << values.length); mask++) {
+    let sum = 0;
+    for (let i = 0; i < values.length; i++) if (mask & (1 << i)) sum += values[i];
+    if (sum === 15) fifteens += 2;
   }
-  return total/trials;
-}
 
-function deal(){
-  currentHand=shuffle([...deckBase]).slice(0,6);
-  remainingDeck=deckBase.filter(c=>!currentHand.includes(c));
-  userSelected=[];
-  renderCards(handEl,currentHand,true); // selectable
-  discardEl.innerHTML=starterEl.innerHTML='';
-  evInfoEl.textContent=scoreEl.textContent='';
-  evDetailsEl.innerHTML='';
-  userStarterRow.innerHTML='';userScore.textContent='';
-  bestSuggestion=starterCard=null;
-}
+  let pairs = 0;
+  for (let i = 0; i < cards.length; i++)
+    for (let j = i+1; j < cards.length; j++)
+      if (cards[i].rank === cards[j].rank) pairs += 2;
 
-function suggest(){
-  if(currentHand.length===0)return alert('Deal a hand first!');
-  const combos=getCombos(currentHand,2);
-  const deck=remainingDeck;
-  let best=null;const results=[];
-  combos.forEach(discard=>{
-    const keep=currentHand.filter(c=>!discard.includes(c));
-    let h=0,c=0;
-    deck.forEach(st=>{
-      const hs=scoreHandDetailed(keep,st).total;
-      const cs=scoreHandDetailed(discard,st).total;
-      h+=hs; c=cribToggleEl.checked?cs:-cs;
-    });
-    const handEV=h/deck.length,cribEV=c/deck.length,totalEV=handEV+cribEV;
-    results.push({discard,handEV,cribEV,totalEV});
-    if(!best||totalEV>best.totalEV)best={discard,handEV,cribEV,totalEV};
-  });
-  bestSuggestion=best;
-  renderCards(discardEl,best.discard);
-  evInfoEl.textContent=`Expected Hand EV: ${best.handEV.toFixed(2)} | Expected Crib EV: ${best.cribEV.toFixed(2)}`;
-  evDetailsEl.innerHTML='';
-  results.sort((a,b)=>b.totalEV-a.totalEV).forEach(r=>{
-    const d=document.createElement('div');
-    d.textContent=`${r.discard.join(', ')} — Hand EV: ${r.handEV.toFixed(2)}, Crib EV: ${r.cribEV.toFixed(2)}`;
-    evDetailsEl.appendChild(d);
-  });
-}
-
-function dealStarter(){
-  if(!bestSuggestion)return alert('Suggest discard first!');
-  starterCard=remainingDeck[Math.floor(Math.random()*remainingDeck.length)];
-  const keep=currentHand.filter(c=>!bestSuggestion.discard.includes(c));
-  renderStarterResult(starterEl,scoreEl,keep,bestSuggestion.discard,starterCard);
-}
-
-// ==== helper reused for both paths ====
-function renderStarterResult(targetRow,targetScore,keep,discard,starter){
-  targetRow.innerHTML='';
-  const sDiv=document.createElement('div');
-  sDiv.className='starter-card-container';
-  const lbl=document.createElement('div');
-  lbl.className='starter-label';
-  lbl.textContent='Starter';
-  const sImg=document.createElement('img');
-  sImg.src=cardImages[starter];
-  sDiv.append(lbl,sImg);
-  targetRow.appendChild(sDiv);
-  keep.forEach(c=>{
-    const d=document.createElement('div');
-    d.className='starter-card-container';
-    const img=document.createElement('img');
-    img.src=cardImages[c];
-    d.appendChild(img);
-    targetRow.appendChild(d);
-  });
-  const det=scoreHandDetailed(keep,starter);
-  const expCrib=monteCarloCribEV(discard,2000);
-  targetScore.innerHTML=`Hand Score: ${det.total} (Runs: ${det.runs}, Fifteens: ${det.fifteens}, Pairs: ${det.pairs}, Flush: ${det.flush}, Nobs: ${det.nobs}) | Crib (expected): ${expCrib.toFixed(1)}`;
-}
-
-// ==== USER DISCARD ADDITION ====
-function toggleSelect(img){
-  const c=img.alt;
-  if(userSelected.includes(c)){
-    userSelected=userSelected.filter(x=>x!==c);
-    img.classList.remove('selected');
-  }else{
-    if(userSelected.length>=2)alert('Already selected 2 cards. Click again to deselect.');
-    else{userSelected.push(c);img.classList.add('selected');}
-  }
-}
-
-function scoreUserDiscard(){
-  if(currentHand.length===0) return alert('Deal a hand first!');
-  if(userSelected.length!==2) return alert('Select exactly 2 cards as your discards.');
-  if(!starterCard) return alert('Deal the starter first!');
-  const discard = [...userSelected];
-  const keep = currentHand.filter(c => !discard.includes(c));
-  renderStarterResult(userStarterRow, userScore, keep, discard, starterCard);
-}
-// =====================================
-
-function toggleEv(){
-  const t=document.getElementById('toggleEv');
-  if(evDetailsEl.style.display==='none'){evDetailsEl.style.display='block';t.textContent='Hide EV Details ▲';}
-  else{evDetailsEl.style.display='none';t.textContent='Show EV Details ▼';}
-}
-// Allow selecting up to 2 cards in the dealt hand
-handEl.querySelectorAll('img').forEach(img => {
-  img.onclick = () => {
-    img.classList.toggle('selected');
-
-    // limit selection to 2 cards
-    const selected = handEl.querySelectorAll('img.selected');
-    if (selected.length > 2) {
-      img.classList.remove('selected'); // undo extra selection
-      alert("You can only select 2 cards!");
+  const rankOrder = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+  const rankCounts = Object.fromEntries(rankOrder.map(r=>[r,0]));
+  cards.forEach(c=>rankCounts[c.rank]++);
+  let runs = 0;
+  for (let i=0;i<=rankOrder.length-3;i++) {
+    let len=0;
+    while(i+len<rankOrder.length && rankCounts[rankOrder[i+len]]>0) len++;
+    if(len>=3){
+      const subset=rankOrder.slice(i,i+len);
+      const mult=subset.reduce((m,r)=>m*rankCounts[r],1);
+      runs+=len*mult;
     }
-  };
+  }
+
+  const handSuits = hand.map(c=>parseCard(c).suit);
+  const starterSuit = parseCard(starter).suit;
+  let flush=0;
+  if(handSuits.every(s=>s===handSuits[0])) flush=(starterSuit===handSuits[0]?5:4);
+
+  const hisNobs = hand.some(c=>{ const p=parseCard(c); return p.rank==='J' && p.suit===starterSuit })?1:0;
+  const total = fifteens + pairs + runs + flush + hisNobs;
+  return { fifteens, pairs, runs, flush, hisNobs, total };
+}
+
+function colorCard(c) {
+  const suit = c.slice(-1);
+  return (suit==='♥'||suit==='♦')?`<span class="red">${c}</span>`:c;
+}
+
+function displayHands() {
+  let html = `<table><tr><th>Hand #</th><th>Cards</th><th>Action</th></tr>`;
+  dealtHands.forEach((obj, i) => {
+    const cardsHtml = obj.hand.map(colorCard).join(', ') + ' | <span class="starter">'+colorCard(obj.starter)+'</span>';
+    const scoreHtml = obj.scoreShown ? scoreCribbageHand(obj.hand, obj.starter).total : '';
+    html += `<tr>
+      <td>${i+1}</td>
+      <td>${cardsHtml}</td>
+      <td><button onclick="showScore(${i})">${scoreHtml?'Score: '+scoreHtml:'Show Score'}</button></td>
+    </tr>`;
+  });
+  html += '</table>';
+  document.getElementById('handsContainer').innerHTML = html;
+}
+
+window.showScore = function(index) {
+  dealtHands[index].scoreShown = true;
+  displayHands();
+}
+
+document.getElementById('dealHandsBtn').addEventListener('click', () => {
+  dealtHands = [];
+  const deck = [];
+  for (const suit of suits) for (const rank of ranks) deck.push(rank+suit);
+
+  for (let i = deck.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+
+  let index=0;
+  for (let h=0; h<5; h++) {
+    const hand = deck.slice(index,index+4);
+    const starter = deck[index+4];
+    dealtHands.push({hand, starter, scoreShown: false});
+    index +=5;
+  }
+
+  displayHands();
 });
-
+})();
 </script>
 </body>
 </html>
